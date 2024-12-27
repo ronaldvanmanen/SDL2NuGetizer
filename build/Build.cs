@@ -13,8 +13,8 @@ using Nuke.Common.Tools.GitVersion;
 using Nuke.Common.Tools.NuGet;
 using Nuke.Common.Utilities;
 using static System.Runtime.InteropServices.RuntimeInformation;
-using static Nuke.Common.IO.FileSystemTasks;
 using static Nuke.Common.Tools.NuGet.NuGetTasks;
+using static StaticMethods;
 
 class Build : NukeBuild
 {
@@ -30,8 +30,8 @@ class Build : NukeBuild
 
     public static int Main () => Execute<Build>(x => x.BuildPackages);
 
-    readonly List<string> ProjectBuildDependenciesForLinux = new()
-    {
+    readonly List<string> ProjectBuildDependenciesForLinux =
+    [
         "build-essential",
         "git",
         "make",
@@ -65,7 +65,7 @@ class Build : NukeBuild
         "libwayland-dev",
         "libdecor-0-dev",
         "mono-devel"
-    };
+    ];
 
     [Parameter("Specifies the architecture for the package (e.g. x64)")]
     readonly string Architecture;
@@ -246,16 +246,15 @@ class Build : NukeBuild
                 )
             );
 
-            CopyFileToDirectory(SourceDirectory / "LICENSE.txt", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "README.md", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "README-SDL.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "LICENSE.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "README.md", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "README-SDL.txt", packageBuildDirectory);
 
             var libraryTargetDirectory = packageBuildDirectory / "runtimes" / $"{Runtime}" / "native";
-
             var libraryFiles = InstallDirectory.GlobFiles("lib/libSDL2*so*", $"lib/{Architecture}/*.dll");
             foreach (var libraryFile in libraryFiles)
             {
-                CopyFileToDirectory(libraryFile, libraryTargetDirectory);
+                CopyToDirectory(libraryFile, libraryTargetDirectory);
             }
 
             var packSettings = new NuGetPackSettings()
@@ -307,13 +306,13 @@ class Build : NukeBuild
                 )
             );
 
-            CopyDirectoryRecursively(InstallDirectory, packageBuildDirectory, DirectoryExistsPolicy.Merge);
-            CopyFileToDirectory(SourceDirectory / "BUGS.txt", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "LICENSE.txt", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "README-SDL.txt", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "README.md", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "WhatsNew.txt", packageBuildDirectory);
-            CopyDirectoryRecursively(SourceDirectory / "docs", packageBuildDirectory / "docs", DirectoryExistsPolicy.Merge);
+            CopyToDirectory(InstallDirectory / ".", packageBuildDirectory, ExistsPolicy.DirectoryMerge);
+            CopyToDirectory(SourceDirectory / "BUGS.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "LICENSE.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "README-SDL.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "README.md", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "WhatsNew.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "docs", packageBuildDirectory, ExistsPolicy.DirectoryMerge);
 
             var packSettings = new NuGetPackSettings()
                 .SetProcessWorkingDirectory(packageBuildDirectory)
@@ -326,6 +325,7 @@ class Build : NukeBuild
 
     Target BuildMultiplatformPackage => _ => _
         .Unlisted()
+        .After(BuildRuntimePackage)
         .Consumes(BuildRuntimePackage)
         .Executes(() =>
         {
@@ -379,13 +379,13 @@ class Build : NukeBuild
                 var runtimePackageMatch = Regex.Match(runtimePackage.NameWithoutExtension, runtimePackagePattern);
                 var runtimePackageID = runtimePackageMatch.Groups["RuntimePackageID"].Value;
                 var runtimeID = runtimePackageMatch.Groups["RuntimeID"].Value;
-                return new RuntimeDescription(runtimeID, new []
-                {
-                    new RuntimeDependencySet($"{ProjectName}", new []
-                    {
+                return new RuntimeDescription(runtimeID,
+                [
+                    new RuntimeDependencySet($"{ProjectName}",
+                    [
                         new RuntimePackageDependency(runtimePackageID, runtimePackageVersion)
-                    })
-                });
+                    ])
+                ]);
             });
 
             var runtimeGraph = new RuntimeGraph(runtimeDescriptions);
@@ -397,13 +397,13 @@ class Build : NukeBuild
                 placeholder.TouchFile();
             }
 
-            CopyFileToDirectory(SourceDirectory / "BUGS.txt", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "LICENSE.txt", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "README-SDL.txt", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "README.md", packageBuildDirectory);
-            CopyFileToDirectory(SourceDirectory / "WhatsNew.txt", packageBuildDirectory);
-            CopyDirectoryRecursively(SourceDirectory / "docs", packageBuildDirectory / "docs", DirectoryExistsPolicy.Merge);
-            CopyDirectoryRecursively(SourceDirectory / "include", packageBuildDirectory / "lib" / "native" / "include", DirectoryExistsPolicy.Merge);
+            CopyToDirectory(SourceDirectory / "BUGS.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "LICENSE.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "README-SDL.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "README.md", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "WhatsNew.txt", packageBuildDirectory);
+            CopyToDirectory(SourceDirectory / "docs", packageBuildDirectory, ExistsPolicy.DirectoryMerge);
+            CopyToDirectory(SourceDirectory / "include", packageBuildDirectory / "lib" / "native", ExistsPolicy.DirectoryMerge);
 
             var packSettings = new NuGetPackSettings()
                 .SetProcessWorkingDirectory(packageBuildDirectory)
